@@ -1,132 +1,93 @@
-import { useState, useEffect } from "react";
-import List from "./List";
-import Alert from "./Alert";
+import { useState, useReducer } from "react";
+import Item from './Item'
+
+const reducer = (list, action) => {
+  if(action.type==='add'){
+    return [...list,{id:new Date().getTime().toString(),text:action.payload.text,completed:false}]
+  }
+  if(action.type==='toggle'){
+    return list.map(i=>{
+      if(i.id===action.payload.id){
+        return {...i,completed:!i.completed};
+      }
+      return i;
+
+    })
+  }
+  if(action.type==='delete'){
+    return list.filter(i=>i.id!==action.payload.id)
+  }
+
+  if(action.type==='edit'){
+    const thatItem = list.find(i=>i.id===action.payload.id)
+    action.payload.settext(thatItem.text);
+    action.payload.setIsEdit(true);
+    action.payload.setEid(action.payload.id);
+
+    return list;
+    
+  }
+
+  if(action.type==='editTask'){
+    return list.map(i=>{
+      if(i.id===action.payload.id)
+      {
+        return {...i,text:action.payload.text};
 
 
-// get localstorage
-const getLocalStorage = ()=>{
-  let list = localStorage.getItem('list');
-  if(list){
-    return JSON.parse(localStorage.getItem('list'))
+      }
+      return i;
+    })
   }
-  else{
-    return []
-  }
+
+  return list
+
 }
 
-// main function
 
 const App = () => {
-  const [text, setText] = useState('');
-  const [list, setList] = useState(getLocalStorage());
-  const [edit, setEdit] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [alert, setAlert] = useState({msg: '', type: '' });
+  const [list, dispatch] = useReducer(reducer, []);
+  const [text, settext] = useState('');
+  const [eid, setEid] = useState(null);
+  const [isEdit, setIsEdit] = useState(false);
 
 
-// main-submit handler
-  const handleSubmit = (e) => {
-    e.preventDefault();
+const handleSubmit =(e)=>{
+  e.preventDefault();
+  if(isEdit){
+    dispatch({type:'editTask', payload:{text:text,id:eid}})
+    setEid(null);
+    setIsEdit(false);
+    settext('');
+  }
+  else if (text){
+  dispatch({type:'add', payload:{text:text}})
 
-    if (!text) {
-      list.length<5?showAlert('plz input  task...', 'danger'):showAlert('Thats enough for today xD', 'danger');
-      ;
-
-    }
-    else if (edit) {
-      
-       setList(list.map((item)=>{
-         if(item.id===editId){
-           return {...item,text:text}
-         }
-         return item;
-       }));
-       setText('');
-       setEdit(false);
-       setEditId(null);
-       showAlert('successfully edited','success')
-    }
-    else {
-
-      if(list.length<5){
-        const newItem = { id: new Date().getTime().toString(), text: text };
-        setList([...list, newItem]);
-        setText('');
-        showAlert('Task Added successfully', 'success');
-      }
-      else{
-        showAlert('Thats enough for today xD', 'danger');
-
-      }
-
-
-    }
-
-
+  settext('');
   }
 
-// alert portable function
-  const showAlert = (msg = '', type = '') => {
-    setAlert({msg: msg, type: type });
-  }
 
-// alert removal list dependency
-  useEffect(() => {
-    const removeAlert = setTimeout(() => {
-      showAlert();
-    }, 3000);
-    return () => { clearTimeout(removeAlert) };
-  }, [list])
+}
 
-
-//  button handlers
-  const deleteHandler = (id) => {
-    const newList = list.filter((item) => item.id !== id)
-    setList(newList)
-    showAlert('Task Deleted ', 'danger');
-
-  }
-  const editHandler = (id) => {
-    const thatItem = list.find((item) => item.id === id);
-    setText(thatItem.text);
-    setEdit(true);
-    setEditId(thatItem.id);
-
-  }
-
-  const handleClear = () => {
-    setList([]);
-    showAlert('List Cleared ! ', 'danger');
-
-  }
-
-// local storage set
-
-  useEffect(() => {
-      localStorage.setItem('list',JSON.stringify(list))
-
-  }, [list])
-
-// main return
+  // main return
   return (
     <div className='container'>
-      <h1 className='main-title'>Todo List</h1>
 
-      {/* input part */}
-      <form  className='form' onSubmit={handleSubmit}>
-        <Alert {...alert} />
-        <input type="text" value={text} onChange={(e) => setText(e.target.value)} className='input' placeholder='   Todo Tasks ...' />
-        <button type='submit' className='submit-btn'>Add</button>
-      </form>
+    <form onSubmit={handleSubmit}>
+    <input type="text" value={text} onChange={(e)=>settext(e.target.value)}/>
+    </form>
+ 
 
 
-      {/* lists part */}
-      {list.length > 0 && <div className="list-all">
-        <List list={list} deleteHandler={deleteHandler} editHandler={editHandler} />
-        <button type='button' className='clear-btn' onClick={handleClear}>Clear All</button>
-      </div>}
+    {list.map((item)=>{
+      return(
+        <Item key={item.id} {...item} dispatch={dispatch} settext={settext} setIsEdit={setIsEdit} setEid={setEid}/>
+      )
+    })}
 
     </div>
+
+
   );
 };
 
